@@ -21,7 +21,7 @@ func TestXXH32(t *testing.T) {
 		{Value: strings.Repeat("abcd", 1000), Want: 0xE18CBEA},
 	}
 	for i, d := range data {
-		v := XXH32([]byte(d.Value), 0)
+		v := Sum32([]byte(d.Value), 0)
 		if v != d.Want {
 			t.Errorf("test %d failed (len: %d): want %x, got %x", i+1, len(d.Value), d.Want, v)
 		}

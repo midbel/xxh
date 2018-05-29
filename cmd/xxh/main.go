@@ -21,7 +21,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			log.Printf("%x %s", xxh.XXH32(bs, 0), file)
+			log.Printf("%x %s", xxh.Sum32(bs, 0), file)
 			return nil
 		})
 	}
