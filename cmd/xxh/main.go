@@ -2,30 +2,42 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"log"
+	"os"
 
 	"github.com/midbel/xxh"
 	"golang.org/x/sync/errgroup"
 )
 
-func main() {
+func init() {
 	log.SetFlags(0)
+}
+
+func main() {
+
+	seed := flag.Uint("s", 0, "seed value")
 	flag.Parse()
 
-	var group errgroup.Group
+	var g errgroup.Group
 	for _, f := range flag.Args() {
 		file := f
-		group.Go(func() error {
-			bs, err := ioutil.ReadFile(file)
+		g.Go(func() error {
+			r, err := os.Open(file)
 			if err != nil {
 				return err
 			}
-			log.Printf("%x %s", xxh.Sum32(bs, 0), file)
+			defer r.Close()
+
+			w := xxh.New32(uint32(*seed))
+			if _, err := io.Copy(w, r); err != nil {
+				return err
+			}
+			log.Printf("%x %s", w.Sum32(), file)
 			return nil
 		})
 	}
-	if err := group.Wait(); err != nil {
+	if err := g.Wait(); err != nil {
 		log.Println(err)
 	}
 }
