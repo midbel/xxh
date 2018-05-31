@@ -58,9 +58,9 @@ func BenchmarkSum32Mega50(b *testing.B)  { benchmarkSum32((1<<20)*50, b) }
 func BenchmarkSum32Mega100(b *testing.B) { benchmarkSum32((1<<20)*100, b) }
 
 func benchmarkSum32(n int, b *testing.B) {
-	str := strings.Repeat(lipsum, n)
+	str := []byte(strings.Repeat(lipsum, n))
 	for i := 0; i < b.N; i++ {
-		Sum32([]byte(str), 0)
+		Sum32(str, 0)
 	}
 }
 

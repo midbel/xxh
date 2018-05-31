@@ -6,6 +6,7 @@ import (
 	"hash"
 	"io"
 	"math/bits"
+	// "log"
 )
 
 const (
@@ -14,6 +15,11 @@ const (
 	PRIME32_3        = 3266489917
 	PRIME32_4        = 668265263
 	PRIME32_5        = 374761393
+)
+
+const (
+	Block32 = 16
+	Size32  = 4
 )
 
 type xxhash32 struct {
@@ -40,8 +46,8 @@ func New32(seed uint32) hash.Hash32 {
 	return &x
 }
 
-func (x *xxhash32) Size() int      { return 4 }
-func (x *xxhash32) BlockSize() int { return 16 }
+func (x *xxhash32) Size() int      { return Size32 }
+func (x *xxhash32) BlockSize() int { return Block32 }
 
 func (x *xxhash32) Write(bs []byte) (int, error) {
 	x.buffer.Write(bs)
@@ -71,15 +77,15 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 	}
 	acc += x.size + uint32(x.buffer.Len())
 
-	for x.buffer.Len() >= 4 {
-		var v uint32
-		binary.Read(x.buffer, binary.LittleEndian, &v)
+	bs = x.buffer.Bytes()
+	for len(bs) >= Size32 {
+		v := binary.LittleEndian.Uint32(bs[:Size32])
 		acc = acc + (v * PRIME32_3)
 		acc = bits.RotateLeft32(acc, 17) * PRIME32_4
+		bs = bs[Size32:]
 	}
-	for x.buffer.Len() > 0 {
-		v, _ := x.buffer.ReadByte()
-		acc = acc + uint32(v)*PRIME32_5
+	for i := 0; i < len(bs); i++ {
+		acc = acc + uint32(bs[i])*PRIME32_5
 		acc = bits.RotateLeft32(acc, 11) * PRIME32_1
 	}
 
@@ -89,7 +95,7 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 	acc *= PRIME32_3
 	acc = acc ^ (acc >> 16)
 
-	cs := make([]byte, x.Size())
+	cs := make([]byte, Size32)
 	binary.BigEndian.PutUint32(cs, acc)
 	return cs
 }
@@ -101,20 +107,17 @@ func (x *xxhash32) Sum32() uint32 {
 
 func (x *xxhash32) calculate() {
 	for {
-		bs := make([]byte, x.BlockSize())
-		if n, _ := io.ReadFull(x.buffer, bs); n < x.BlockSize() {
+		bs := make([]byte, Block32)
+		if n, _ := io.ReadFull(x.buffer, bs); n < Block32 {
 			x.buffer.Write(bs[:n])
 			break
 		}
-		r := bytes.NewReader(bs)
-		for i := 0; r.Len() > 0; i++ {
-			var v uint32
-			binary.Read(r, binary.LittleEndian, &v)
-
-			a := x.as[i%4] + (v * PRIME32_2)
+		for i, j := 0, 0; i < len(bs); i, j = i+Size32, j+1 {
+			v := binary.LittleEndian.Uint32(bs[i:i+Size32])
+			a := x.as[j] + (v * PRIME32_2)
 			a = bits.RotateLeft32(a, 13)
 
-			x.as[i] = a * PRIME32_1
+			x.as[j] = a * PRIME32_1
 		}
 		x.size += uint32(len(bs))
 	}
