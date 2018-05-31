@@ -50,6 +50,20 @@ func TestSum32(t *testing.T) {
 	}
 }
 
+func BenchmarkSum32Kilo(b *testing.B)    { benchmarkSum32(1<<10, b) }
+func BenchmarkSum32Mega(b *testing.B)    { benchmarkSum32(1<<20, b) }
+func BenchmarkSum32Mega10(b *testing.B)  { benchmarkSum32((1<<20)*10, b) }
+func BenchmarkSum32Mega25(b *testing.B)  { benchmarkSum32((1<<20)*25, b) }
+func BenchmarkSum32Mega50(b *testing.B)  { benchmarkSum32((1<<20)*50, b) }
+func BenchmarkSum32Mega100(b *testing.B) { benchmarkSum32((1<<20)*100, b) }
+
+func benchmarkSum32(n int, b *testing.B) {
+	str := strings.Repeat(lipsum, n)
+	for i := 0; i < b.N; i++ {
+		Sum32([]byte(str), 0)
+	}
+}
+
 func TestSum64(t *testing.T) {
 	for i, d := range data64 {
 		got := Sum64([]byte(d.Value), 0)
