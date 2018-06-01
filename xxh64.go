@@ -8,14 +8,6 @@ import (
 	"math/bits"
 )
 
-const (
-	PRIME64_1 uint64 = 11400714785074694791
-	PRIME64_2        = 14029467366897019727
-	PRIME64_3        = 1609587929392839161
-	PRIME64_4        = 9650029242287828579
-	PRIME64_5        = 2870177450012600261
-)
-
 type xxhash64 struct {
 	size   uint64
 	seed   uint64
@@ -51,6 +43,11 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 	return len(bs), nil
 }
 
+func (x *xxhash64) Seed(s uint) {
+	x.Reset()
+	x.seed = uint64(s)
+}
+
 func (x *xxhash64) Reset() {
 	x.buffer.Reset()
 	x.as, x.size = reset64(x.seed), 0
@@ -64,9 +61,8 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 		acc = x.seed + PRIME64_5
 	} else {
 		x.calculate()
-		ix := []int{1, 7, 12, 18}
 		for i := range x.as {
-			acc += bits.RotateLeft64(x.as[i], ix[i])
+			acc += bits.RotateLeft64(x.as[i], ints[i])
 		}
 		for i := range x.as {
 			acc = merge64(acc, x.as[i])

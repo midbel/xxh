@@ -8,19 +8,6 @@ import (
 	"math/bits"
 )
 
-const (
-	PRIME32_1 uint32 = 2654435761
-	PRIME32_2        = 2246822519
-	PRIME32_3        = 3266489917
-	PRIME32_4        = 668265263
-	PRIME32_5        = 374761393
-)
-
-const (
-	Block32 = 16
-	Size32  = 4
-)
-
 type xxhash32 struct {
 	size   uint32
 	seed   uint32
@@ -52,6 +39,11 @@ func (x *xxhash32) Write(bs []byte) (int, error) {
 	return len(bs), nil
 }
 
+func (x *xxhash32) Seed(s uint) {
+	x.Reset()
+	x.seed = uint32(s)
+}
+
 func (x *xxhash32) Reset() {
 	x.buffer = nil
 	x.as, x.size = reset32(x.seed), 0
@@ -67,9 +59,8 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 		acc = x.seed + PRIME32_5
 	} else {
 		x.calculate()
-		ix := []int{1, 7, 12, 18}
 		for i := range x.as {
-			acc += bits.RotateLeft32(x.as[i], ix[i])
+			acc += bits.RotateLeft32(x.as[i], ints[i])
 		}
 	}
 	acc += x.size + uint32(len(x.buffer))
