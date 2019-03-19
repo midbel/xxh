@@ -8,6 +8,19 @@ import (
 	"math/bits"
 )
 
+const (
+	PRIME32_1 uint32 = 2654435761
+	PRIME32_2        = 2246822519
+	PRIME32_3        = 3266489917
+	PRIME32_4        = 668265263
+	PRIME32_5        = 374761393
+)
+
+const (
+	sizeBlock32 = 16
+	sizeHash32  = 4
+)
+
 type xxhash32 struct {
 	size   uint32
 	seed   uint32
@@ -30,8 +43,8 @@ func New32(seed uint32) hash.Hash32 {
 	return &x
 }
 
-func (x *xxhash32) Size() int      { return Size32 }
-func (x *xxhash32) BlockSize() int { return Block32 }
+func (x *xxhash32) Size() int      { return sizeHash32 }
+func (x *xxhash32) BlockSize() int { return sizeBlock32 }
 
 func (x *xxhash32) Write(bs []byte) (int, error) {
 	x.buffer = append(x.buffer, bs...)
@@ -45,7 +58,7 @@ func (x *xxhash32) Seed(s uint) {
 }
 
 func (x *xxhash32) Reset() {
-	x.buffer = nil
+	x.buffer = x.buffer[:0]
 	x.as, x.size = reset32(x.seed), 0
 }
 
@@ -65,10 +78,10 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 	}
 	acc += x.size + uint32(len(x.buffer))
 
-	for len(x.buffer) >= Size32 {
-		acc += binary.LittleEndian.Uint32(x.buffer[:Size32]) * PRIME32_3
+	for len(x.buffer) >= sizeHash32 {
+		acc += binary.LittleEndian.Uint32(x.buffer[:sizeHash32]) * PRIME32_3
 		acc = bits.RotateLeft32(acc, 17) * PRIME32_4
-		x.buffer = x.buffer[Size32:]
+		x.buffer = x.buffer[sizeHash32:]
 	}
 	for i := 0; i < len(x.buffer); i++ {
 		acc += uint32(x.buffer[i]) * PRIME32_5
@@ -79,7 +92,7 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 	acc = (acc ^ (acc >> 13)) * PRIME32_3
 	acc = acc ^ (acc >> 16)
 
-	cs := make([]byte, Size32)
+	cs := make([]byte, sizeHash32)
 	binary.BigEndian.PutUint32(cs, acc)
 	return cs
 }
@@ -90,14 +103,14 @@ func (x *xxhash32) Sum32() uint32 {
 }
 
 func (x *xxhash32) calculate() {
-	for n := len(x.buffer); n >= Block32; n -= Block32 {
-		for i, j := 0, 0; i < Block32; i, j = i+Size32, j+1 {
-			v := binary.LittleEndian.Uint32(x.buffer[i : i+Size32])
+	for n := len(x.buffer); n >= sizeBlock32; n -= sizeBlock32 {
+		for i, j := 0, 0; i < sizeBlock32; i, j = i+sizeHash32, j+1 {
+			v := binary.LittleEndian.Uint32(x.buffer[i : i+sizeHash32])
 			a := x.as[j] + (v * PRIME32_2)
 
 			x.as[j] = bits.RotateLeft32(a, 13) * PRIME32_1
 		}
-		x.buffer, x.size = x.buffer[Block32:], x.size+Block32
+		x.buffer, x.size = x.buffer[sizeBlock32:], x.size+sizeBlock32
 	}
 }
 
