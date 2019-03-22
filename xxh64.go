@@ -29,7 +29,7 @@ type xxhash64 struct {
 }
 
 func Sum64(bs []byte, seed uint64) uint64 {
-	defer default64.Reset()
+	default64.Reset()
 	if _, err := default64.Write(bs); err != nil {
 		return 0
 	}
@@ -65,12 +65,12 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 }
 
 func (x *xxhash64) Seed(s uint) {
-	x.Reset()
 	x.seed = uint64(s)
+	x.Reset()
 }
 
 func (x *xxhash64) Reset() {
-	x.buffer = x.buffer[:0]
+	x.buffer = nil
 	x.as, x.size = reset64(x.seed), 0
 }
 
@@ -81,18 +81,23 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	if x.size == 0 {
 		acc = x.seed + PRIME64_5
 	} else {
-		x.calculate()
-		for i := range x.as {
-			acc += bits.RotateLeft64(x.as[i], ints[i])
+		if len(x.buffer) >= sizeBlock64 {
+			x.calculate()
 		}
-		for i := range x.as {
-			acc = merge64(acc, x.as[i])
-		}
+		acc += bits.RotateLeft64(x.as[0], 1)
+		acc += bits.RotateLeft64(x.as[1], 7)
+		acc += bits.RotateLeft64(x.as[2], 12)
+		acc += bits.RotateLeft64(x.as[3], 18)
+
+		acc = merge64(acc, x.as[0])
+		acc = merge64(acc, x.as[1])
+		acc = merge64(acc, x.as[2])
+		acc = merge64(acc, x.as[3])
 	}
-	acc += x.size + uint64(len(x.buffer))
+	z := len(x.buffer)
+	acc += x.size + uint64(z)
 
 	var i int
-	z := len(x.buffer)
 	for i = 0; i < z-sizeHash64; i += sizeHash64 {
 		v := binary.LittleEndian.Uint64(x.buffer[i:])
 		acc = acc ^ round64(0, v)
@@ -102,11 +107,12 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	if (z - i) >= 4 {
 		v := binary.LittleEndian.Uint32(x.buffer[i:])
 		acc = acc ^ (uint64(v) * PRIME64_1)
-		acc = (bits.RotateLeft64(acc, 23)) * PRIME64_2
+		acc = bits.RotateLeft64(acc, 23) * PRIME64_2
 		acc += PRIME64_3
+		i += 4
 	}
 	for ; i < z; i++ {
-		acc = acc ^ uint64(x.buffer[i])*PRIME64_5
+		acc = acc ^ (uint64(x.buffer[i]) * PRIME64_5)
 		acc = bits.RotateLeft64(acc, 11) * PRIME64_1
 	}
 
@@ -116,7 +122,7 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
 
-	x.buffer = x.buffer[:0]
+	x.buffer = nil
 
 	cs := make([]byte, x.Size())
 	binary.BigEndian.PutUint64(cs, acc)
@@ -131,10 +137,7 @@ func (x *xxhash64) Sum64() uint64 {
 func (x *xxhash64) calculateBlock(buffer []byte) {
 	for j := 0; j < 4; j++ {
 		v := binary.LittleEndian.Uint64(buffer[j*sizeHash64:])
-		a := x.as[j] + (v * PRIME64_2)
-		a = bits.RotateLeft64(a, 31)
-
-		x.as[j] = a * PRIME64_1
+		x.as[j] = round64(x.as[j], v)
 	}
 	x.size += uint64(x.BlockSize())
 }
@@ -147,14 +150,6 @@ func (x *xxhash64) calculate() {
 			return
 		}
 		x.calculateBlock(x.buffer[i:])
-		// for j := 0; j < 4; j++ {
-		// 	v := binary.LittleEndian.Uint64(x.buffer[i+(j*8):])
-		// 	a := x.as[j] + (v * PRIME64_2)
-		// 	a = bits.RotateLeft64(a, 31)
-		//
-		// 	x.as[j] = a * PRIME64_1
-		// }
-		// x.size += uint64(z)
 	}
 }
 
@@ -169,12 +164,10 @@ func reset64(seed uint64) [4]uint64 {
 
 func merge64(a, curr uint64) uint64 {
 	a = a ^ round64(0, curr)
-	a = a * PRIME64_1
-	return a + PRIME64_4
+	return (a * PRIME64_1) + PRIME64_4
 }
 
 func round64(a, curr uint64) uint64 {
-	a = a + (curr * PRIME64_2)
-	a = bits.RotateLeft64(a, 31)
-	return a * PRIME64_1
+	a += curr * PRIME64_2
+	return bits.RotateLeft64(a, 31) * PRIME64_1
 }
