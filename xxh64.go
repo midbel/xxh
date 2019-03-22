@@ -21,6 +21,8 @@ const (
 	sizeBlock64 = 32
 )
 
+var default64 = New64(0)
+
 type xxhash64 struct {
 	size   uint64
 	seed   uint64
@@ -29,11 +31,11 @@ type xxhash64 struct {
 }
 
 func Sum64(bs []byte, seed uint64) uint64 {
-	w := New64(seed)
-	if _, err := io.Copy(w, bytes.NewReader(bs)); err != nil {
+	defer default64.Reset()
+	if _, err := io.Copy(default64, bytes.NewReader(bs)); err != nil {
 		return 0
 	}
-	return w.Sum64()
+	return default64.Sum64()
 }
 
 func New64(seed uint64) hash.Hash64 {
