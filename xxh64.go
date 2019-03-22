@@ -1,10 +1,8 @@
 package xxh
 
 import (
-	"bytes"
 	"encoding/binary"
 	"hash"
-	"io"
 	"math/bits"
 )
 
@@ -32,7 +30,7 @@ type xxhash64 struct {
 
 func Sum64(bs []byte, seed uint64) uint64 {
 	defer default64.Reset()
-	if _, err := io.Copy(default64, bytes.NewReader(bs)); err != nil {
+	if _, err := default64.Write(bs); err != nil {
 		return 0
 	}
 	return default64.Sum64()
