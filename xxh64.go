@@ -48,15 +48,18 @@ func (x *xxhash64) Size() int      { return sizeHash64 }
 func (x *xxhash64) BlockSize() int { return sizeBlock64 }
 
 func (x *xxhash64) Write(bs []byte) (int, error) {
-	var n int
-	for i := 0; i < len(bs); i += sizeBlock64 {
+	if len(x.buffer) > 0 {
+		bs = append(x.buffer, bs...)
+	}
+	var i int
+	for i < len(bs) {
 		if len(bs[i:]) < sizeBlock64 {
-			n = i
 			break
 		}
 		x.calculateBlock(bs[i:])
+		i += sizeBlock64
 	}
-	x.buffer = append(x.buffer, bs[n:]...)
+	x.buffer = append(x.buffer[:0], bs[i:]...)
 
 	return len(bs), nil
 }
@@ -112,6 +115,8 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc = acc ^ (acc >> 29)
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
+
+	x.buffer = x.buffer[:0]
 
 	cs := make([]byte, x.Size())
 	binary.BigEndian.PutUint64(cs, acc)
