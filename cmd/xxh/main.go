@@ -28,14 +28,14 @@ func main() {
 		return
 	}
 
-	for _, f := range flag.Args() {
-		r, err := os.Open(f)
+	for i := range flag.Args() {
+		r, err := os.Open(flag.Arg(i))
 		if err != nil {
 			continue
 		}
 
 		if _, err := io.Copy(digest, r); err == nil {
-			fmt.Printf(pattern, digest.Sum(nil), f)
+			fmt.Printf(pattern, digest.Sum(nil), r.Name())
 			digest.Reset()
 		}
 		r.Close()
