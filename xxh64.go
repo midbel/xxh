@@ -134,11 +134,15 @@ func (x *xxhash64) Sum64() uint64 {
 	return binary.BigEndian.Uint64(bs)
 }
 
-func (x *xxhash64) calculateBlock(buffer []byte) {
-	for j := 0; j < 4; j++ {
-		v := binary.LittleEndian.Uint64(buffer[j*sizeHash64:])
-		x.as[j] = round64(x.as[j], v)
-	}
+func (x *xxhash64) calculateBlock(buf []byte) {
+	x.as[0] = round64(x.as[0], binary.LittleEndian.Uint64(buf[0:]))
+	x.as[1] = round64(x.as[1], binary.LittleEndian.Uint64(buf[8:]))
+	x.as[2] = round64(x.as[2], binary.LittleEndian.Uint64(buf[16:]))
+	x.as[3] = round64(x.as[3], binary.LittleEndian.Uint64(buf[24:]))
+	// for j := 0; j < 4; j++ {
+	// 	v := binary.LittleEndian.Uint64(buffer[j*sizeHash64:])
+	// 	x.as[j] = round64(x.as[j], v)
+	// }
 	x.size += uint64(x.BlockSize())
 }
 
