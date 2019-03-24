@@ -51,9 +51,10 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 	if len(x.buffer) > 0 {
 		bs = append(x.buffer, bs...)
 	}
+	size := len(bs)
 	var i int
-	for i < len(bs) {
-		if len(bs[i:]) < sizeBlock64 {
+	for i < size {
+		if size - i < sizeBlock64 {
 			break
 		}
 		x.calculateBlock(bs[i:])
@@ -109,10 +110,10 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 		acc = acc ^ (uint64(v) * PRIME64_1)
 		acc = bits.RotateLeft64(acc, 23) * PRIME64_2
 		acc += PRIME64_3
-		i += 4
+		i+=4
 	}
 	for ; i < z; i++ {
-		acc = acc ^ (uint64(x.buffer[i]) * PRIME64_5)
+		acc = acc ^ (uint64(x.buffer[i])*PRIME64_5)
 		acc = bits.RotateLeft64(acc, 11) * PRIME64_1
 	}
 
