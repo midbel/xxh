@@ -59,7 +59,7 @@ func computeDigests(files []string, kind, seed uint) {
 	}
 
 	buffer := make([]byte, 32<<10)
-	for i := range files {
+	for i := 0; i < len(files); i++ {
 		r, err := os.Open(files[i])
 		if err != nil {
 			continue
