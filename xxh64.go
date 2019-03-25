@@ -54,15 +54,15 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 	size := len(bs)
 	var i int
 	for i < size {
-		if size - i < sizeBlock64 {
+		if size-i < sizeBlock64 {
 			break
 		}
 		x.calculateBlock(bs[i:])
 		i += sizeBlock64
 	}
-	x.buffer = append(x.buffer[:0], bs[i:]...)
+	x.buffer = bs[i:] // append(x.buffer[:0], bs[i:]...)
 
-	return len(bs), nil
+	return size, nil
 }
 
 func (x *xxhash64) Seed(s uint) {
@@ -78,13 +78,15 @@ func (x *xxhash64) Reset() {
 func (x *xxhash64) Sum(bs []byte) []byte {
 	var acc uint64
 
-	x.buffer = append(x.buffer, bs...)
-	if x.size == 0 {
+	if len(bs) > 0 {
+		x.buffer = append(x.buffer, bs...)
+	}
+	if x.size == 0 && len(x.buffer) < sizeBlock64 {
 		acc = x.seed + PRIME64_5
 	} else {
-		if len(x.buffer) >= sizeBlock64 {
-			x.calculate()
-		}
+		// if len(x.buffer) >= sizeBlock64 {
+		// 	x.calculate()
+		// }
 		acc += bits.RotateLeft64(x.as[0], 1)
 		acc += bits.RotateLeft64(x.as[1], 7)
 		acc += bits.RotateLeft64(x.as[2], 12)
@@ -99,22 +101,27 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc += x.size + uint64(z)
 
 	var i int
-	for i = 0; i < z-sizeHash64; i += sizeHash64 {
+	for i < (z-sizeHash64)+1 {
 		v := binary.LittleEndian.Uint64(x.buffer[i:])
 		acc = acc ^ round64(0, v)
 		acc = bits.RotateLeft64(acc, 27) * PRIME64_1
 		acc += PRIME64_4
+
+		i += sizeHash64
 	}
 	if (z - i) >= 4 {
 		v := binary.LittleEndian.Uint32(x.buffer[i:])
 		acc = acc ^ (uint64(v) * PRIME64_1)
 		acc = bits.RotateLeft64(acc, 23) * PRIME64_2
 		acc += PRIME64_3
-		i+=4
+
+		i += 4
 	}
-	for ; i < z; i++ {
-		acc = acc ^ (uint64(x.buffer[i])*PRIME64_5)
+	for i < z {
+		acc = acc ^ (uint64(x.buffer[i]) * PRIME64_5)
 		acc = bits.RotateLeft64(acc, 11) * PRIME64_1
+
+		i++
 	}
 
 	acc = acc ^ (acc >> 33)
@@ -125,7 +132,7 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 
 	x.buffer = nil
 
-	cs := make([]byte, x.Size())
+	cs := make([]byte, sizeHash64)
 	binary.BigEndian.PutUint64(cs, acc)
 	return cs
 }
@@ -148,13 +155,18 @@ func (x *xxhash64) calculateBlock(buf []byte) {
 }
 
 func (x *xxhash64) calculate() {
-	z := x.BlockSize()
-	for i := 0; i < len(x.buffer); i += z {
-		if len(x.buffer[i:]) < z {
-			x.buffer = x.buffer[i:]
-			return
-		}
+	size := len(x.buffer)
+	var i int
+	for i < size {
+		// if len(x.buffer[i:]) < z {
+		// 	x.buffer = x.buffer[i:]
+		// 	return
+		// }
 		x.calculateBlock(x.buffer[i:])
+		i += sizeBlock64
+	}
+	if i < size {
+		x.buffer = x.buffer[i:]
 	}
 }
 
