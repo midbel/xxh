@@ -6,42 +6,16 @@ import (
 	"hash"
 	"io"
 	"os"
-	"runtime/pprof"
 	"time"
 
 	"github.com/midbel/xxh"
 )
 
 func main() {
-	mem := flag.String("m", "", "memory profile")
-	cpu := flag.String("c", "", "cpu profile")
 	kind := flag.Uint("k", 0, "hash")
 	seed := flag.Uint("s", 0, "seed value")
 	flag.Parse()
-
-	if *cpu != "" {
-		w, err := os.Create(*cpu)
-		if err != nil {
-			os.Exit(1)
-		}
-		defer w.Close()
-		if err := pprof.StartCPUProfile(w); err != nil {
-			os.Exit(1)
-		}
-		defer pprof.StopCPUProfile()
-	}
 	computeDigests(flag.Args(), *kind, *seed)
-
-	if *mem != "" {
-		w, err := os.Create(*mem)
-		if err != nil {
-			os.Exit(2)
-		}
-		defer w.Close()
-		if err := pprof.WriteHeapProfile(w); err != nil {
-			os.Exit(2)
-		}
-	}
 }
 
 func computeDigests(files []string, kind, seed uint) {
@@ -51,7 +25,7 @@ func computeDigests(files []string, kind, seed uint) {
 	)
 	switch kind {
 	case 0, 64:
-		digest, pattern = xxh.New64(uint64(seed)), "%016x %s - %dKB (%s)\n"
+		digest, pattern = xxh.New64(uint64(seed)), "%016x  %s - %dKB (%s)\n"
 	case 32:
 		digest, pattern = xxh.New32(uint32(seed)), "%08x %s - %dKB (%s)\n"
 	default:
