@@ -60,7 +60,7 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 		x.calculateBlock(bs[i:])
 		i += sizeBlock64
 	}
-	x.buffer = bs[i:] // append(x.buffer[:0], bs[i:]...)
+	x.buffer = bs[i:]
 
 	return size, nil
 }
@@ -76,6 +76,8 @@ func (x *xxhash64) Reset() {
 }
 
 func (x *xxhash64) Sum(bs []byte) []byte {
+	defer x.Reset()
+	
 	var acc uint64
 
 	if len(bs) > 0 {
@@ -84,9 +86,6 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	if x.size == 0 && len(x.buffer) < sizeBlock64 {
 		acc = x.seed + PRIME64_5
 	} else {
-		// if len(x.buffer) >= sizeBlock64 {
-		// 	x.calculate()
-		// }
 		acc += bits.RotateLeft64(x.as[0], 1)
 		acc += bits.RotateLeft64(x.as[1], 7)
 		acc += bits.RotateLeft64(x.as[2], 12)
@@ -130,8 +129,6 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
 
-	x.buffer = nil
-
 	cs := make([]byte, sizeHash64)
 	binary.BigEndian.PutUint64(cs, acc)
 	return cs
@@ -147,21 +144,14 @@ func (x *xxhash64) calculateBlock(buf []byte) {
 	x.as[1] = round64(x.as[1], binary.LittleEndian.Uint64(buf[8:]))
 	x.as[2] = round64(x.as[2], binary.LittleEndian.Uint64(buf[16:]))
 	x.as[3] = round64(x.as[3], binary.LittleEndian.Uint64(buf[24:]))
-	// for j := 0; j < 4; j++ {
-	// 	v := binary.LittleEndian.Uint64(buffer[j*sizeHash64:])
-	// 	x.as[j] = round64(x.as[j], v)
-	// }
-	x.size += uint64(x.BlockSize())
+
+	x.size += sizeBlock64
 }
 
 func (x *xxhash64) calculate() {
 	size := len(x.buffer)
 	var i int
 	for i < size {
-		// if len(x.buffer[i:]) < z {
-		// 	x.buffer = x.buffer[i:]
-		// 	return
-		// }
 		x.calculateBlock(x.buffer[i:])
 		i += sizeBlock64
 	}
