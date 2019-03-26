@@ -1,10 +1,8 @@
 package xxh
 
 import (
-	"bytes"
 	"encoding/binary"
 	"hash"
-	"io"
 	"math/bits"
 )
 
@@ -21,6 +19,8 @@ const (
 	sizeHash32  = 4
 )
 
+var default32 = New32(0)
+
 type xxhash32 struct {
 	size   uint32
 	seed   uint32
@@ -29,15 +29,16 @@ type xxhash32 struct {
 }
 
 func Sum32(bs []byte, seed uint32) uint32 {
-	w := New32(seed)
-	if _, err := io.Copy(w, bytes.NewReader(bs)); err != nil {
+	default32.Reset()
+	if _, err := default32.Write(bs); err != nil {
 		return 0
 	}
-	return w.Sum32()
+	return default32.Sum32()
 }
 
 func New32(seed uint32) hash.Hash32 {
-	x := xxhash32{seed: seed}
+	var x xxhash32
+	x.seed = seed
 	x.Reset()
 
 	return &x
@@ -47,45 +48,65 @@ func (x *xxhash32) Size() int      { return sizeHash32 }
 func (x *xxhash32) BlockSize() int { return sizeBlock32 }
 
 func (x *xxhash32) Write(bs []byte) (int, error) {
-	x.buffer = append(x.buffer, bs...)
-	x.calculate()
-	return len(bs), nil
+	if len(x.buffer) > 0 {
+		bs = append(x.buffer, bs...)
+	}
+	size := len(bs)
+	var i int
+	for i < size {
+		if size-i < sizeBlock32 {
+			break
+		}
+		x.calculateBlock(bs[i:])
+		i += sizeBlock32
+	}
+	x.buffer = bs[i:]
+
+	return size, nil
 }
 
 func (x *xxhash32) Seed(s uint) {
-	x.Reset()
 	x.seed = uint32(s)
+	x.Reset()
 }
 
 func (x *xxhash32) Reset() {
-	x.buffer = x.buffer[:0]
+	x.buffer = nil
 	x.as, x.size = reset32(x.seed), 0
 }
 
 func (x *xxhash32) Sum(bs []byte) []byte {
+	defer x.Reset()
+	
+	var acc uint32
+
 	if len(bs) > 0 {
 		x.buffer = append(x.buffer, bs...)
 	}
-
-	var acc uint32
 	if x.size == 0 {
 		acc = x.seed + PRIME32_5
 	} else {
-		x.calculate()
-		for i := range x.as {
-			acc += bits.RotateLeft32(x.as[i], ints[i])
-		}
+		acc += bits.RotateLeft32(x.as[0], 1)
+		acc += bits.RotateLeft32(x.as[1], 7)
+		acc += bits.RotateLeft32(x.as[2], 12)
+		acc += bits.RotateLeft32(x.as[3], 18)
 	}
-	acc += x.size + uint32(len(x.buffer))
+	z := len(x.buffer)
+	acc += x.size + uint32(z)
 
-	for len(x.buffer) >= sizeHash32 {
-		acc += binary.LittleEndian.Uint32(x.buffer[:sizeHash32]) * PRIME32_3
+	var i int
+	for i < (z-sizeHash32)+1 {
+		v := binary.LittleEndian.Uint32(x.buffer[i:]) * PRIME32_3
+		acc += v
 		acc = bits.RotateLeft32(acc, 17) * PRIME32_4
-		x.buffer = x.buffer[sizeHash32:]
+
+		i += sizeHash32
 	}
-	for i := 0; i < len(x.buffer); i++ {
+	for i < z {
 		acc += uint32(x.buffer[i]) * PRIME32_5
 		acc = bits.RotateLeft32(acc, 11) * PRIME32_1
+
+		i++
 	}
 
 	acc = (acc ^ (acc >> 15)) * PRIME32_2
@@ -102,16 +123,30 @@ func (x *xxhash32) Sum32() uint32 {
 	return binary.BigEndian.Uint32(bs)
 }
 
-func (x *xxhash32) calculate() {
-	for n := len(x.buffer); n >= sizeBlock32; n -= sizeBlock32 {
-		for i, j := 0, 0; i < sizeBlock32; i, j = i+sizeHash32, j+1 {
-			v := binary.LittleEndian.Uint32(x.buffer[i : i+sizeHash32])
-			a := x.as[j] + (v * PRIME32_2)
+func (x *xxhash32) calculateBlock(buf []byte) {
+	x.as[0] = round32(x.as[0], binary.LittleEndian.Uint32(buf[0:]))
+	x.as[1] = round32(x.as[1], binary.LittleEndian.Uint32(buf[4:]))
+	x.as[2] = round32(x.as[2], binary.LittleEndian.Uint32(buf[8:]))
+	x.as[3] = round32(x.as[3], binary.LittleEndian.Uint32(buf[12:]))
 
-			x.as[j] = bits.RotateLeft32(a, 13) * PRIME32_1
-		}
-		x.buffer, x.size = x.buffer[sizeBlock32:], x.size+sizeBlock32
+	x.size += sizeBlock32
+}
+
+func (x *xxhash32) calculate() {
+	size := len(x.buffer)
+	var i int
+	for i < size {
+		x.calculateBlock(x.buffer[i:])
+		i += sizeBlock32
 	}
+	if i < size {
+		x.buffer = x.buffer[i:]
+	}
+}
+
+func round32(a, curr uint32) uint32 {
+	a += curr * PRIME32_2
+	return bits.RotateLeft32(a, 13) * PRIME32_1
 }
 
 func reset32(seed uint32) [4]uint32 {
