@@ -26,6 +26,8 @@ type xxhash64 struct {
 	seed   uint64
 	as     [4]uint64
 	buffer []byte
+
+	sum [sizeHash64]byte
 }
 
 func Sum64(bs []byte, seed uint64) uint64 {
@@ -77,7 +79,7 @@ func (x *xxhash64) Reset() {
 
 func (x *xxhash64) Sum(bs []byte) []byte {
 	defer x.Reset()
-	
+
 	var acc uint64
 
 	if len(bs) > 0 {
@@ -129,9 +131,9 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
 
-	cs := make([]byte, sizeHash64)
-	binary.BigEndian.PutUint64(cs, acc)
-	return cs
+	// cs := make([]byte, sizeHash64)
+	binary.BigEndian.PutUint64(x.sum[:], acc)
+	return x.sum[:]
 }
 
 func (x *xxhash64) Sum64() uint64 {

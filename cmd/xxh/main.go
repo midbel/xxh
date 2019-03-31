@@ -6,8 +6,8 @@ import (
 	"hash"
 	"io"
 	"os"
-	"time"
 	"runtime/pprof"
+	"time"
 
 	"github.com/midbel/xxh"
 )
@@ -37,15 +37,15 @@ func computeDigests(files []string, kind, seed uint) {
 	var (
 		digest  hash.Hash
 		pattern string
-		size int
+		size    int
 	)
 	switch kind {
 	case 0, 64:
 		digest, pattern = xxh.New64(uint64(seed)), "%016x  %s - %dKB (%s)\n"
-		size = 32<<10
+		size = 32 << 10
 	case 32:
 		digest, pattern = xxh.New32(uint32(seed)), "%08x %s - %dKB (%s)\n"
-		size = 16<<10
+		size = 16 << 10
 	default:
 		return
 	}
