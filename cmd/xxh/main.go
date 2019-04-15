@@ -21,7 +21,12 @@ func main() {
 	if *cmp {
 		err = compareDigests(flag.Arg(0), *kind, *seed)
 	} else {
-		err = computeDigests(flag.Args(), *kind, *seed)
+		files, err := listfiles(flag.Args())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		err = computeDigests(files, *kind, *seed)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -30,6 +35,17 @@ func main() {
 }
 
 var buffer = make([]byte, 8<<10)
+
+func listfiles(files []string) ([]string, error) {
+	if len(files) > 0 {
+		return files, nil
+	}
+	rs := bufio.NewScanner(bufio.NewReader(os.Stdin))
+	for rs.Scan() {
+		files = append(files, rs.Text())
+	}
+	return files, rs.Err()
+}
 
 func compareDigests(file string, kind, seed uint) error {
 	r, err := os.Open(file)
