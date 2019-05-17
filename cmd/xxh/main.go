@@ -54,7 +54,7 @@ func compareDigests(file string, kind, seed uint) error {
 	}
 	defer r.Close()
 
-	var digest  hash.Hash
+	var digest hash.Hash
 	switch kind {
 	case 0, 64:
 		digest = xxh.New64(uint64(seed))
