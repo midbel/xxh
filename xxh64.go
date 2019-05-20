@@ -52,9 +52,6 @@ func (x *xxhash64) Size() int      { return sizeHash64 }
 func (x *xxhash64) BlockSize() int { return sizeBlock64 }
 
 func (x *xxhash64) Write(bs []byte) (int, error) {
-	// if len(x.buffer) > 0 {
-	// 	bs = append(x.buffer, bs...)
-	// }
 	var i int
 	if x.offset > 0 {
 		i = copy(x.buffer[x.offset:], bs)
@@ -73,7 +70,6 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 	if diff := len(bs) - i; diff > 0 {
 		x.offset = copy(x.buffer[:], bs[i:])
 	}
-	// x.buffer = bs[i:]
 
 	return size, nil
 }
@@ -84,7 +80,6 @@ func (x *xxhash64) Seed(s uint) {
 }
 
 func (x *xxhash64) Reset() {
-	// x.buffer = nil
 	x.offset = 0
 	x.as, x.size = reset64(x.seed), 0
 }
@@ -92,9 +87,10 @@ func (x *xxhash64) Reset() {
 func (x *xxhash64) Sum(bs []byte) []byte {
 	defer x.Reset()
 
-	var acc uint64
-
-	var buffer []byte
+	var (
+		acc    uint64
+		buffer []byte
+	)
 	if x.offset > 0 {
 		buffer = append(buffer, x.buffer[:x.offset]...)
 	}
