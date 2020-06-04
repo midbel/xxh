@@ -1,6 +1,7 @@
 package xxh
 
 import (
+	"encoding/binary"
 	"io"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ var data32 = []struct {
 	{Value: "I love programming in GO!", Want: 0x4FE3561F},
 	{Value: strings.Repeat("abc", 999), Want: 0x89DA9B6E},
 	{Value: strings.Repeat("abcd", 1000), Want: 0xE18CBEA},
+	{Value: "the quick brown fox jumps over the lazy dog", Want: 0x66716377},
 }
 
 var data64 = []struct {
@@ -26,6 +28,48 @@ var data64 = []struct {
 	Value string
 }{
 	{Value: lipsum, Want: 0x59f3208ca1d7b1b4},
+	{Value: "the quick brown fox jumps over the lazy dog", Want: 0xed714233c5a9a792},
+}
+
+func TestHashSum64(t *testing.T) {
+	data := []struct {
+		Value string
+		Want  uint64
+	}{
+		{Value: "the quick brown fox", Want: 0x150018d41c31b193},
+		{Value: " jumps over the", Want: 0xb828d547a6bd6d1e},
+		{Value: " lazy dog", Want: 0xed714233c5a9a792},
+	}
+	digest := New64(0)
+	for i, d := range data {
+		digest.Write([]byte(d.Value))
+		hash := binary.BigEndian.Uint64(digest.Sum(nil))
+		if hash != d.Want {
+			t.Errorf("%d) hash mismatched! want %x, got %x", i+1, d.Want, hash)
+			break
+		}
+	}
+}
+
+func TestHashSum32(t *testing.T) {
+	data := []struct {
+		Value string
+		Want  uint32
+	}{
+		{Value: "the quick brown fox", Want: 0x9adf0164},
+		{Value: " jumps over the", Want: 0x3e6a06dd},
+		{Value: " lazy dog", Want: 0x66716377},
+	}
+	digest := New32(0)
+	for i, d := range data {
+		t.Logf("%x", d.Value)
+		digest.Write([]byte(d.Value))
+		hash := binary.BigEndian.Uint32(digest.Sum(nil))
+		if hash != d.Want {
+			t.Errorf("%d) hash mismatched! want %x, got %x", i+1, d.Want, hash)
+			break
+		}
+	}
 }
 
 func TestHash32(t *testing.T) {

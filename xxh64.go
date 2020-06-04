@@ -85,17 +85,18 @@ func (x *xxhash64) Reset() {
 }
 
 func (x *xxhash64) Sum(bs []byte) []byte {
-	defer x.Reset()
+	y := *x
+	hash := y.checksum()
+	return append(bs, hash...)
+}
 
+func (x *xxhash64) checksum() []byte {
 	var (
 		acc    uint64
 		buffer []byte
 	)
 	if x.offset > 0 {
 		buffer = append(buffer, x.buffer[:x.offset]...)
-	}
-	if len(bs) > 0 {
-		buffer = append(buffer, bs...)
 	}
 	if x.size == 0 && len(buffer) < sizeBlock64 {
 		acc = x.seed + PRIME64_5
@@ -143,14 +144,13 @@ func (x *xxhash64) Sum(bs []byte) []byte {
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
 
-	// cs := make([]byte, sizeHash64)
-	binary.BigEndian.PutUint64(x.sum[:], acc)
-	return x.sum[:]
+	sum := make([]byte, sizeHash64)
+	binary.BigEndian.PutUint64(sum, acc)
+	return sum
 }
 
 func (x *xxhash64) Sum64() uint64 {
-	bs := x.Sum(nil)
-	return binary.BigEndian.Uint64(bs)
+	return binary.BigEndian.Uint64(x.checksum())
 }
 
 func (x *xxhash64) calculateBlock(buf []byte) {
