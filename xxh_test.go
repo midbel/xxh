@@ -62,7 +62,6 @@ func TestHashSum32(t *testing.T) {
 	}
 	digest := New32(0)
 	for i, d := range data {
-		t.Logf("%x", d.Value)
 		digest.Write([]byte(d.Value))
 		hash := binary.BigEndian.Uint32(digest.Sum(nil))
 		if hash != d.Want {

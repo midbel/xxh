@@ -55,9 +55,11 @@ func (x *xxhash32) Write(bs []byte) (int, error) {
 	var i int
 	if x.offset > 0 {
 		i = copy(x.buffer[x.offset:], bs)
-		x.offset = 0
-
-		x.calculateBlock(x.buffer[:])
+		x.offset += i
+		if x.offset >= sizeBlock32 {
+			x.offset = 0
+			x.calculateBlock(x.buffer[:])
+		}
 	}
 	size := len(bs)
 	for i < size {
@@ -91,8 +93,6 @@ func (x *xxhash32) Sum(bs []byte) []byte {
 }
 
 func (x *xxhash32) checksum() []byte {
-	defer x.Reset()
-
 	var (
 		acc    uint32
 		buffer []byte

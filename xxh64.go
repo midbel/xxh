@@ -28,8 +28,6 @@ type xxhash64 struct {
 
 	offset int
 	buffer [sizeBlock64]byte
-
-	sum [sizeHash64]byte
 }
 
 func Sum64(bs []byte, seed uint64) uint64 {
@@ -55,9 +53,11 @@ func (x *xxhash64) Write(bs []byte) (int, error) {
 	var i int
 	if x.offset > 0 {
 		i = copy(x.buffer[x.offset:], bs)
-		x.offset = 0
-
-		x.calculateBlock(x.buffer[:])
+		x.offset += i
+		if x.offset >= sizeBlock64 {
+			x.offset = 0
+			x.calculateBlock(x.buffer[:])
+		}
 	}
 	size := len(bs)
 	for i < size {
