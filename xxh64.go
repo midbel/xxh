@@ -144,9 +144,16 @@ func (x *xxhash64) checksum() []byte {
 	acc *= PRIME64_3
 	acc = acc ^ (acc >> 32)
 
-	sum := make([]byte, sizeHash64)
-	binary.BigEndian.PutUint64(sum, acc)
-	return sum
+	return []byte{
+		byte(acc >> 56),
+		byte((acc >> 48) & 0xFF),
+		byte((acc >> 40) & 0xFF),
+		byte((acc >> 32) & 0xFF),
+		byte((acc >> 24) & 0xFF),
+		byte((acc >> 16) & 0xFF),
+		byte((acc >> 8) & 0xFF),
+		byte(acc & 0xFF),
+	}
 }
 
 func (x *xxhash64) Sum64() uint64 {

@@ -28,8 +28,6 @@ type xxhash32 struct {
 
 	offset int
 	buffer [sizeBlock32]byte
-
-	sum [sizeHash32]byte
 }
 
 func Sum32(bs []byte, seed uint32) uint32 {
@@ -130,8 +128,12 @@ func (x *xxhash32) checksum() []byte {
 	acc = (acc ^ (acc >> 13)) * PRIME32_3
 	acc = acc ^ (acc >> 16)
 
-	binary.BigEndian.PutUint32(x.sum[:], acc)
-	return x.sum[:]
+	return []byte{
+		byte(acc >> 24),
+		byte((acc >> 16) & 0xFF),
+		byte((acc >> 8) & 0xFF),
+		byte(acc & 0xFF),
+	}
 }
 
 func (x *xxhash32) Sum32() uint32 {
