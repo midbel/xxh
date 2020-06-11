@@ -2,6 +2,7 @@ package xxh
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hash"
 	"math/bits"
 )
@@ -17,6 +18,11 @@ const (
 const (
 	sizeBlock32 = 16
 	sizeHash32  = 4
+)
+
+const (
+	magic32 = "xxhash32\x03\x02"
+	len32   = len(magic32) + sizeBlock32 + 1 + (6 * 4)
 )
 
 var default32 = New32(0)
@@ -44,6 +50,44 @@ func New32(seed uint32) hash.Hash32 {
 	x.Reset()
 
 	return &x
+}
+
+func (x *xxhash32) MarshalBinary() ([]byte, error) {
+	bs := make([]byte, len32)
+	bs = append(bs, magic32...)
+	bs = append(bs, appendUint32(bs, x.size)...)
+	bs = append(bs, appendUint32(bs, x.seed)...)
+	bs = append(bs, appendUint32(bs, x.as[0])...)
+	bs = append(bs, appendUint32(bs, x.as[1])...)
+	bs = append(bs, appendUint32(bs, x.as[2])...)
+	bs = append(bs, appendUint32(bs, x.as[3])...)
+	bs = append(bs, appendUint8(bs, uint8(x.offset))...)
+	if x.offset > 0 {
+		bs = append(bs, x.buffer[:x.offset]...)
+	}
+	return bs, nil
+}
+
+func (x *xxhash32) UnmarshalBinary(bs []byte) error {
+	if len(bs) < len(magic32) && string(bs[:len(magic32)]) != magic32 {
+		return fmt.Errorf("invalid hash state identifier")
+	}
+	if len(bs) != len32 {
+		return fmt.Errorf("invalid hash state size")
+	}
+	bs, x.size = consumeUint32(bs)
+	bs, x.seed = consumeUint32(bs)
+
+	bs, x.as[0] = consumeUint32(bs)
+	bs, x.as[1] = consumeUint32(bs)
+	bs, x.as[2] = consumeUint32(bs)
+	bs, x.as[3] = consumeUint32(bs)
+
+	if bs, offset := consumeUint8(bs); offset > 0 {
+		x.offset = copy(x.buffer[:], bs[:x.offset])
+	}
+	return nil
+	return nil
 }
 
 func (x *xxhash32) Size() int      { return sizeHash32 }
